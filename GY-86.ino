@@ -31,71 +31,46 @@ THE SOFTWARE.
 
 // Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
 // is used in I2Cdev.h
-#include <math.h>
-#include "Wire.h"
 
-// I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
-// for both classes must be in the include path of your project
-#include "I2Cdev.h"
-#include "MPU6050.h"
 
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
 // AD0 low = 0x68 (default for InvenSense evaluation board)
 // AD0 high = 0x69
-MPU6050 accelgyro;
-
-int16_t ax, ay, az;
-int16_t gx, gy, gz;
-double roll, pitch, yaw;
-
-#define LED_PIN 13
-bool blinkState = false;
-
 void InitI2C() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
     Wire.begin();
 
-    // initialize serial communication
-    // (38400 chosen because it works as well at 8MHz as it does at 16MHz, but
-    // it's really up to you depending on your project)
-    Serial.begin(9200);
-
     // initialize device
-    Serial.println("Initializing I2C devices...");
     accelgyro.initialize();
 
     // verify connection
-    Serial.println("Testing device connections...");
-    Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
-
-    // configure Arduino LED for
-    pinMode(LED_PIN, OUTPUT);
+    accelgyro.testConnection();
 }
 
-void GetAngle() {
-    // read raw accel/gyro measurements from device
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-
-    // these methods (and a few others) are also available
-    //accelgyro.getAcceleration(&ax, &ay, &az);
-    //accelgyro.getRotation(&gx, &gy, &gz);
-    roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2))) * 180 / 3.141592;
-    pitch = -atan2(ax, sqrt(pow(ay, 2) + pow(az, 2))) * 180 / 3.141592;
-    gx = gx / 131;
-    gy = gy / 131;
-    gz = gz / 131;
-
-    // display tab-separated accel/gyro x/y/z values
-    Serial.print("roll, pitch:\t");
-    Serial.print(roll); Serial.print("\t");
-    Serial.print(pitch); Serial.print("\t");
-    Serial.print(az); Serial.print("\t");
-    Serial.print(gx); Serial.print("\t");
-    Serial.print(gy); Serial.print("\t");
-    Serial.println(gz);
-
-    // blink LED to indicate activity
-    blinkState = !blinkState;
-    digitalWrite(LED_PIN, blinkState);
-}
+//void GetAngle() {
+//    // read raw accel/gyro measurements from device
+//    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+//
+//    // these methods (and a few others) are also available
+//    //accelgyro.getAcceleration(&ax, &ay, &az);
+//    //accelgyro.getRotation(&gx, &gy, &gz);
+//    roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2))) * 180 / 3.141592;
+//    pitch = -atan2(ax, sqrt(pow(ay, 2) + pow(az, 2))) * 180 / 3.141592;
+//    gx = gx / 131;
+//    gy = gy / 131;
+//    gz = gz / 131;
+//
+//    // display tab-separated accel/gyro x/y/z values
+//    Serial.print("roll, pitch:\t");
+//    Serial.print(roll); Serial.print("\t");
+//    Serial.print(pitch); Serial.print("\t");
+//    Serial.print(az); Serial.print("\t");
+//    Serial.print(gx); Serial.print("\t");
+//    Serial.print(gy); Serial.print("\t");
+//    Serial.println(gz);
+//
+//    // blink LED to indicate activity
+//    blinkState = !blinkState;
+//    digitalWrite(LED_PIN, blinkState);
+//}
