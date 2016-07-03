@@ -19,12 +19,12 @@ void InitMotor()
   OCR1B = 249;
   OCR1A = 249;
   OCR0B = 249;
-  delay(600000);
+  delay(60000);
   OCR2B = 0;
   OCR1B = 0;
   OCR1A = 0;
   OCR0B = 0;
-  delay(600000);
+  delay(60000);
 }
 
 void SetUpMotor()
