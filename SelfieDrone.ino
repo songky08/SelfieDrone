@@ -124,8 +124,12 @@ void loop() {
 //  Serial.print("pitch: ");
 //  Serial.println(pitch);
 
+/*  roll, Kp = 0.40, Ki = 0.06, Kd = 1.0  */
   SetPin3_Duty(throttle + r_p + r_i + r_d);
   SetPin5_Duty(throttle - r_p - r_i - r_d);
+/*    */
+  SetPin9_Duty(throttle + r_p + r_i + r_d);
+  SetPin10_Duty(throttle - r_p - r_i - r_d);
   
     
   switch(rx)
@@ -142,6 +146,9 @@ void loop() {
     break;
     case 't':
     throttle = 0;
+    kp = 0;
+    ki = 0;
+    kd = 0;
     bluetooth.println("turn off");
     break;
     case 'p':
@@ -204,6 +211,11 @@ void loop() {
     bluetooth.print("kd : ");
     bluetooth.println(kd);
     break;
+    case 'a':
+    bluetooth.print("roll : ");
+    bluetooth.print(roll);bluetooth.print("\t");
+    bluetooth.print("pitch : ");
+    bluetooth.println(pitch);
   }
 
   // put your main code here, to run repeatedly:

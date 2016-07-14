@@ -48,23 +48,71 @@ void SetUpMotor()
   TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS12);
   ICR1  = 138;
 }
-
-void SetPin3_Duty(double val)
+/*  set min value 0 */
+int SetPin3_Duty(double val)
 {
-  OCR2B = val;
+  if (val < 2)
+  {
+    OCR2B = 2;
+  }
+  else if (val > 135)
+  {
+    OCR2B = 135;
+  }
+  else
+  {
+    OCR2B = val;
+  }
+  return OCR2B;
 }
 
-void SetPin5_Duty(double val)
+int SetPin5_Duty(double val)
 {
-  OCR0B = val;
+  if (val < 2)
+  {
+    OCR0B = 2;
+  }
+  else if (val > 135)
+  {
+    OCR0B = 135;
+  }
+  else
+  {
+    OCR0B = val;
+  }
+  return OCR0B;
 }
 
-void SetPin9_Duty(double val)
+int SetPin9_Duty(double val)
 {
-  OCR1A = val;
+  if (val < 2)
+  {
+    OCR1A = 2;
+  }
+  else if (val > 135)
+  {
+    OCR1A = 135;
+  }
+  else
+  {
+    OCR1A = val;
+  }
+  return OCR1A;
 }
 
-void SetPin10_Duty(double val)
+int SetPin10_Duty(double val)
 {
-  OCR1B = val;
+  if (val < 2)
+  {
+    OCR1B = 2;
+  }
+  else if (val > 135)
+  {
+    OCR1B = 135;
+  }
+  else
+  {
+    OCR1B = val;
+  }
+  return OCR1B;
 }
