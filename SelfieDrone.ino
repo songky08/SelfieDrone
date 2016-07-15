@@ -21,7 +21,27 @@ int32_t mx, my, mz;
 int32_t gx_c, gy_c, gz_c;
 double a_roll, a_pitch;
 double roll, pitch, yaw;
+double roll_std, pitch_std;
+double roll_err, pitch_err;
 
+void trimAngle()
+{
+  double roll_sum = 0, pitch_sum = 0;
+  double roll_ave, pitch_ave;
+  for (int i = 0; i < 10; i++)
+  {
+    accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
+    a_roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2))) * 180 / 3.141592;
+    a_pitch = -atan2(ax, sqrt(pow(ay, 2) + pow(az, 2))) * 180 / 3.141592;
+    
+    roll_sum += a_roll;
+    pitch_sum += a_pitch;
+  }
+  roll_ave = roll_sum / 10;
+  pitch_ave = pitch_sum / 10;
+  roll_std = roll_ave;
+  pitch_std = pitch_ave;
+}
 void initBluetooth() 
 {
   bluetooth.begin(115200);
@@ -49,11 +69,13 @@ void setup() {
   InitMotor();
   InitI2C();
   SetUpMotor();
+
   initBluetooth();
-  SetPin3_Duty(0);//min = 4, max = 248
-  SetPin5_Duty(0);
-  SetPin9_Duty(0);
-  SetPin10_Duty(0);
+
+  SetPin3_Duty(0);//min = 2, max = 135
+  SetPin5_Duty(0);//min = 2, max = 135
+  SetPin9_Duty(0);//min = 2, max = 135
+  SetPin10_Duty(0);//min = 2, max = 135
 //  Serial.begin(9600);
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
@@ -68,10 +90,11 @@ void setup() {
   gx_c /= 10;
   gy_c /= 10;
   gz_c /= 10;
+  trimAngle();
 }
 
 void loop() {
-  static double r_p, r_i, r_d, kp, ki, kd;
+  static double r_p, r_i, r_d, r_p_g, r_i_g, r_d_g, p_p, p_i, p_d, p_p_g, p_i_g, p_d_g;
   static unsigned int throttle = 10;
   rx = getCommand();
 
@@ -85,138 +108,151 @@ void loop() {
   gy = (double)(gy_r - gy_c) / (double)131;
   gz = (double)(gz_r - gz_c) / (double)131;
   
-  
-
-    
-//  dt /= 300000;
   gx_s += gx * dt;
   gy_s += gy * dt;
-//  dt2 = micros();
-//  Serial.print("gy_s : ");
-//  Serial.print(gy_s);
-//  Serial.print("\t");
-//  dt = 0.1;
-//  Serial.print("dt : ");
-//  Serial.print(dt);
-//  Serial.print("\t");
   roll = 0.95 * (roll + gx * dt) + 0.05 * a_roll;
   pitch = 0.95 * (pitch + gy * dt) + 0.05 * a_pitch;
-  r_p = roll * kp;
-  r_i += roll * dt * ki;
-  r_d = gx * kd;
+  roll_err = roll - roll_std;
+  pitch_err = pitch - pitch_std;
+  r_p = roll_err * r_p_g;
+  r_i += roll_err * dt * r_i_g;
+  r_d = gx * r_d_g;
+  p_p = pitch_err * p_p_g;
+  p_i += pitch_err * dt * p_i_g;
+  p_d = gy * p_d_g;
   
-  
-//  Serial.print("dt2 : ");
-//  Serial.println(dt2);
-  
-  // display tab-separated accel/gyro x/y/z values
-  
-//  Serial.print("gx : ");
-//  Serial.print(gx);Serial.print("\t");
-//  Serial.print("gy : ");
-//  Serial.print(gy);Serial.print("\t");
-//  Serial.print("a_pitch: ");
-//  Serial.print(a_pitch); Serial.print("\t");
-//  Serial.print("pitch: ");
-//  Serial.print(pitch); Serial.print("\n");
-////  Serial.print("a_pitch: ");
-//  Serial.print(a_pitch); Serial.print("\t");
-//  Serial.print("pitch: ");
-//  Serial.println(pitch);
-
-/*  roll, Kp = 0.40, Ki = 0.06, Kd = 1.0  */
+/*  07/14 roll, Kp = 0.40, Ki = 0.06, Kd = 1.0  */
+/*  07/15 roll, Kp = 0.35, Ki = 0.08, Kd = 1.3  */
   SetPin3_Duty(throttle + r_p + r_i + r_d);
   SetPin5_Duty(throttle - r_p - r_i - r_d);
-/*    */
-  SetPin9_Duty(throttle + r_p + r_i + r_d);
-  SetPin10_Duty(throttle - r_p - r_i - r_d);
+/*  07/15 pitch Kp = 0.35, Ki = 0.08, Kd = 1.3  */
+  SetPin9_Duty(throttle + p_p + p_i + p_d);
+  SetPin10_Duty(throttle - p_p - p_i - p_d);
   
     
   switch(rx)
   {
+    case 'q':
+    r_p_g = 0.35;
+    p_p_g = 0.35;
+    r_i_g = 0.08;
+    p_i_g = 0.08;
+    r_d_g = 1.3;
+    p_d_g = 1.3;
+    bluetooth.println("PID on");
+    break;
+    
     case 'u':
     throttle++;
     bluetooth.print("throttle : ");
     bluetooth.println(throttle);
     break;
+    
     case 'y':
     throttle--;
     bluetooth.print("throttle : ");
     bluetooth.println(throttle);
     break;
+    
     case 't':
     throttle = 0;
-    kp = 0;
-    ki = 0;
-    kd = 0;
+    r_p_g = 0;
+    r_i_g = 0;
+    r_d_g = 0;
+    p_p_g = 0;
+    p_i_g = 0;
+    p_d_g = 0;
     bluetooth.println("turn off");
     break;
+    
     case 'p':
-    kp += 0.1;
-    bluetooth.print("kp : ");
-    bluetooth.println(kp);
+    p_p_g += 0.1;
+    r_p_g += 0.1;
+    bluetooth.print("p_p_g : ");
+    bluetooth.println(p_p_g);
     break;
+    
     case '0':
-    kp += 0.01;
-    bluetooth.print("kp : ");
-    bluetooth.println(kp);
+    p_p_g += 0.01;
+    r_p_g += 0.01;
+    bluetooth.print("p_p_g : ");
+    bluetooth.println(p_p_g);
     break;
+    
     case 'l':
-    kp -= 0.1;
-    bluetooth.print("kp : ");
-    bluetooth.println(kp);
+    p_p_g -= 0.1;
+    r_p_g -= 0.1;
+    bluetooth.print("p_p_g : ");
+    bluetooth.println(p_p_g);
     break;
+    
     case '9':
-    kp -= 0.01;
-    bluetooth.print("kp : ");
-    bluetooth.println(kp);
+    p_p_g -= 0.01;
+    r_p_g -= 0.01;
+    bluetooth.print("p_p_g : ");
+    bluetooth.println(p_p_g);
     break;
+    
     case 'i':
-    ki += 0.1;
-    bluetooth.print("ki : ");
-    bluetooth.println(ki);
+    p_i_g += 0.1;
+    r_i_g += 0.1;
+    bluetooth.print("p_i_g : ");
+    bluetooth.println(p_i_g);
     break;
+    
     case '8':
-    ki += 0.01;
-    bluetooth.print("ki : ");
-    bluetooth.println(ki);
+    p_i_g += 0.01;
+    r_i_g += 0.01;
+    bluetooth.print("p_i_g : ");
+    bluetooth.println(p_i_g);
     break;
+    
     case 'k':
-    ki -= 0.1;
-    bluetooth.print("ki : ");
-    bluetooth.println(ki);
+    p_i_g -= 0.1;
+    r_i_g -= 0.1;
+    bluetooth.print("p_i_g : ");
+    bluetooth.println(p_i_g);
     break;
+    
     case '7':
-    ki -= 0.01;
-    bluetooth.print("ki : ");
-    bluetooth.println(ki);
+    p_i_g -= 0.01;
+    r_i_g -= 0.01;
+    bluetooth.print("p_i_g : ");
+    bluetooth.println(p_i_g);
     break;
+    
     case 'd':
-    kd += 0.1;
-    bluetooth.print("kd : ");
-    bluetooth.println(kd);
+    p_d_g += 0.1;
+    r_d_g += 0.1;
+    bluetooth.print("p_d_g : ");
+    bluetooth.println(p_d_g);
     break;
+    
     case 'e':
-    kd += 0.01;
-    bluetooth.print("kd : ");
-    bluetooth.println(kd);
+    p_d_g += 0.01;
+    r_d_g += 0.01;
+    bluetooth.print("p_d_g : ");
+    bluetooth.println(p_d_g);
     break;
+    
     case 'c':
-    kd -= 0.1;
-    bluetooth.print("kd : ");
-    bluetooth.println(kd);
+    p_d_g -= 0.1;
+    r_d_g -= 0.1;
+    bluetooth.print("p_d_g : ");
+    bluetooth.println(p_d_g);
     break;
+    
     case 'w':
-    kd -= 0.01;
-    bluetooth.print("kd : ");
-    bluetooth.println(kd);
+    p_d_g -= 0.01;
+    r_d_g -= 0.01;
+    bluetooth.print("p_d_g : ");
+    bluetooth.println(p_d_g);
     break;
+    
     case 'a':
-    bluetooth.print("roll : ");
-    bluetooth.print(roll);bluetooth.print("\t");
-    bluetooth.print("pitch : ");
-    bluetooth.println(pitch);
+    bluetooth.print("roll_err : ");
+    bluetooth.print(roll_err);
+    bluetooth.print("\tpitch_err : ");
+    bluetooth.print(pitch_err);
   }
-
-  // put your main code here, to run repeatedly:
 }
