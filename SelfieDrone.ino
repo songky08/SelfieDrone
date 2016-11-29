@@ -10,6 +10,7 @@
 SoftwareSerial bluetooth(0,1);    // RX : Digital Pin 0, TX : Digital Pin 1
 
 MPU6050 accelgyro;
+int sw = 10;
 double dt = 0.043, dt2;
 int g_duty;
 char rx;
@@ -61,7 +62,7 @@ char getCommand()
 
 void setup() {
   // put your setup code here, to run once:
-  
+//  
   pinMode(3, OUTPUT);
   pinMode(5, OUTPUT);
   pinMode(9, OUTPUT);
@@ -69,14 +70,12 @@ void setup() {
   InitMotor();
   InitI2C();
   SetUpMotor();
-
   initBluetooth();
 
-  SetPin3_Duty(0);//min = 2, max = 135
-  SetPin5_Duty(0);//min = 2, max = 135
-  SetPin9_Duty(0);//min = 2, max = 135
-  SetPin10_Duty(0);//min = 2, max = 135
-//  Serial.begin(9600);
+//  SetPin3_Duty(0);//min = 2, max = 240
+//  SetPin5_Duty(0);//min = 2, max = 240
+//  SetPin9_Duty(0);//min = 2, max = 240
+//  SetPin10_Duty(0);//min = 2, max = 240
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
@@ -90,16 +89,19 @@ void setup() {
   gx_c /= 10;
   gy_c /= 10;
   gz_c /= 10;
+  
   trimAngle();
 }
 
 void loop() {
   static double r_p, r_i, r_d, r_p_g, r_i_g, r_d_g, p_p, p_i, p_d, p_p_g, p_i_g, p_d_g;
   static unsigned int throttle = 10;
+  unsigned long currnt_t, pre_t;
+  double pre_roll;
   rx = getCommand();
 
-
-
+//  currnt_t = micros();
+  
   // these methods (and a few others) are also available
   accelgyro.getMotion6(&ax, &ay, &az, &gx_r, &gy_r, &gz_r);
   a_roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2))) * 180 / 3.141592;
@@ -107,6 +109,8 @@ void loop() {
   gx = (double)(gx_r - gx_c) / (double)131;
   gy = (double)(gy_r - gy_c) / (double)131;
   gz = (double)(gz_r - gz_c) / (double)131;
+
+  pre_roll = roll;
   
   gx_s += gx * dt;
   gy_s += gy * dt;
@@ -120,25 +124,31 @@ void loop() {
   p_p = pitch_err * p_p_g;
   p_i += pitch_err * dt * p_i_g;
   p_d = gy * p_d_g;
-  
-/*  07/14 roll, Kp = 0.40, Ki = 0.06, Kd = 1.0  */
-/*  07/15 roll, Kp = 0.35, Ki = 0.08, Kd = 1.3  */
-  SetPin3_Duty(throttle + r_p + r_i + r_d);
-  SetPin5_Duty(throttle - r_p - r_i - r_d);
+
+/*  07/14 roll, Kp = 0.40, Ki = 0.06, Kd = 1.0 
+ *  07/15 roll, Kp = 0.35, Ki = 0.08, Kd = 1.3 
+ *  11/09 roll, Kp = 0.50, Ki = 0.05, Kd = 0.6
+ *  11/10 roll, Kp = 0.40, Ki = 0.12, Kd = 0.4
+ *  depend on Ziegler-Nichols,(Kp = Kp, Ki = Kp * 2 / T, Kd = Kp * T / 8.
+ *  assume T=1s
+ *  if Kp = 4.0, Ki = 8.0, Kd = 0.5 
+ */
+  SetPin3_Duty(throttle + r_p + r_i + r_d);//right
+  SetPin5_Duty(throttle - r_p - r_i - r_d);//left
 /*  07/15 pitch Kp = 0.35, Ki = 0.08, Kd = 1.3  */
-  SetPin9_Duty(throttle + p_p + p_i + p_d);
-  SetPin10_Duty(throttle - p_p - p_i - p_d);
+  SetPin9_Duty(throttle + p_p + p_i + p_d);//above
+  SetPin10_Duty(throttle - p_p - p_i - p_d);//bottom
+
   
-    
   switch(rx)
   {
     case 'q':
-    r_p_g = 0.35;
-    p_p_g = 0.35;
-    r_i_g = 0.08;
-    p_i_g = 0.08;
-    r_d_g = 1.3;
-    p_d_g = 1.3;
+    r_p_g = 0.4;
+    p_p_g = 0.4;
+    r_i_g = 0.12;
+    p_i_g = 0.12;
+    r_d_g = 0.4;
+    p_d_g = 0.4;
     bluetooth.println("PID on");
     break;
     
@@ -155,7 +165,7 @@ void loop() {
     break;
     
     case 't':
-    throttle = 0;
+    throttle = 5;
     r_p_g = 0;
     r_i_g = 0;
     r_d_g = 0;
@@ -192,7 +202,7 @@ void loop() {
     bluetooth.print("p_p_g : ");
     bluetooth.println(p_p_g);
     break;
-    
+
     case 'i':
     p_i_g += 0.1;
     r_i_g += 0.1;
@@ -254,5 +264,12 @@ void loop() {
     bluetooth.print(roll_err);
     bluetooth.print("\tpitch_err : ");
     bluetooth.print(pitch_err);
+    bluetooth.print("\tdelay time : ");
+    bluetooth.println(micros() - currnt_t);
   }
+//  
+//  pre_t = micros();
+//
+//  Serial.print("delay time : ");
+//  Serial.println(pre_t - currnt_t);
 }
